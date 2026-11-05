@@ -1,102 +1,34 @@
-
-const recommendations = {
-  "Bedroom": ["Laminate Door", "WPVC", "Tough PVC", "Lamination Door"],
-  "Bathroom": ["WPVC", "Tough PVC", "Laminate Door", "Lamination Door"],
-  "Main door": ["Laminate Door", "Lamination Door", "WPVC", "Tough PVC"],
-  "For terrace": ["Laminate Door", "WPVC", "Lamination Door", "Tough PVC"]
-};
-
-const prices = {
-  "WPVC": 200,
-  "Tough PVC": 120,
-  "Laminate Door": 250,
-  "Lamination Door": 130
-};
-
-const descriptions = {
-  "WPVC": "Confirm site and installation suitability with the shop.",
-  "Tough PVC": "Uses fixed sheet sizes. Final billing depends on the sheet required.",
-  "Laminate Door": "Explore available laminate finishes and designs.",
-  "Lamination Door": "Explore available laminated finishes and designs."
-};
-
-const materials = document.getElementById("materials");
-const title = document.getElementById("materialTitle");
-const section = materials.closest(".section");
-
-let selectedCategory = null;
-
-function showMaterials(category) {
-  selectedCategory = category;
-  section.hidden = false;
-
-  document.querySelectorAll(".category").forEach(button => {
-    button.classList.toggle("active", button.dataset.category === category);
-  });
-
-  title.textContent = "Recommended for " + category;
-
-  materials.innerHTML = recommendations[category].map((name, i) => `
-    <button type="button" class="material material-button" data-material="${name}">
-      <span class="rank">${i + 1}</span>
-      <span><b>${name}</b><small>View material and price details</small></span>
-      <span>›</span>
-    </button>
-  `).join("");
-
-  materials.querySelectorAll("[data-material]").forEach(button => {
-    button.addEventListener("click", () => showDetails(button.dataset.material));
-  });
-
-  section.scrollIntoView({behavior:"smooth", block:"start"});
-}
-
-function showDetails(name) {
-  materials.innerHTML = `
-    <div class="material-detail">
-      <button type="button" id="backMaterials">← Back to materials</button>
-      <p class="eyebrow">MATERIAL DETAILS</p>
-      <h3>${name}</h3>
-      <h2>₹${prices[name].toLocaleString("en-IN")} <small>per sq. ft.</small></h2>
-      <p>${descriptions[name]}</p>
-      <div class="catalogue-placeholder">
-        <b>Door designs will appear here</b>
-        <p>Product photos and original design numbers will be added when the shop catalogue is uploaded.</p>
-      </div>
-    </div>
-  `;
-
-  document.getElementById("backMaterials").addEventListener("click", () => {
-    showMaterials(selectedCategory);
-  });
-}
-
-document.querySelectorAll(".category").forEach(button => {
-  button.addEventListener("click", () => {
-    showMaterials(button.dataset.category);
-  });
-});
-
-document.getElementById("calculate").addEventListener("click", () => {
-  const width = Number(document.getElementById("width").value);
-  const height = Number(document.getElementById("height").value);
-  const result = document.getElementById("result");
-
-  if (width <= 0 || height <= 0) {
-    result.textContent = "Please enter valid measurements in inches.";
-    return;
-  }
-
-  result.textContent =
-    `Estimated area: ${(width * height / 144).toFixed(2)} sq. ft.`;
-});
-
-document.getElementById("ownerBtn").addEventListener("click", () => {
-  document.getElementById("ownerDialog").showModal();
-});
-
-document.getElementById("enquiryBtn").addEventListener("click", () => {
-  document.getElementById("enquiryDialog").showModal();
-});
-
-section.hidden = true;
+const prices={"WPVC":200,"Tough PVC":120,"Laminate Door":250,"Lamination Door":130};
+const recommendations={"Bedroom":["Laminate Door","WPVC","Tough PVC","Lamination Door"],"Bathroom":["WPVC","Tough PVC","Laminate Door","Lamination Door"],"Main door":["Laminate Door","Lamination Door","WPVC","Tough PVC"],"For terrace":["Laminate Door","WPVC","Lamination Door","Tough PVC"]};
+const materialDescriptions={"WPVC":"A versatile option to discuss for bedroom, bathroom and other suitable spaces. Confirm site suitability with the shop.","Tough PVC":"A practical option with specific sheet-size rules. Final billable sheet size is confirmed after measurement review.","Laminate Door":"Explore decorative finishes and designs for spaces where appearance is important.","Lamination Door":"Compare finish options and installation requirements with the shop."};
+const designs=[
+ ["PD-101","Classic Panel","Classic","A timeless panel-inspired sample design."],
+ ["PD-102","Modern Lines","Modern","A clean contemporary sample with simple lines."],
+ ["PD-103","Geometric Grace","Geometric","A geometric sample pattern for a modern interior."],
+ ["PD-104","Warm Wood","Wood finish","A warm wood-look sample for a welcoming space."],
+ ["PD-105","Signature Panels","Classic","A refined panel-style sample design."],
+ ["PD-106","Urban Slate","Modern","A minimal slate-tone sample concept."]
+];
+let activeCategory="",activeMaterial="",activeProduct=null;
+const $=id=>document.getElementById(id);
+const materialSection=$("materials"),catalogue=$("catalogue"),detail=$("productDetail");
+function go(el){el.scrollIntoView({behavior:"smooth",block:"start"});}
+function hideViews(){materialSection.hidden=true;catalogue.hidden=true;detail.hidden=true;}
+function showMaterials(category){activeCategory=category;hideViews();materialSection.hidden=false;$("materialTitle").textContent=`Recommended for ${category}`;const list=$("materialsList");list.innerHTML=recommendations[category].map((name,i)=>`<button class="material-card" data-material="${name}"><span class="material-rank">${i+1}</span><span><b>${name}</b><small>${materialDescriptions[name]}</small></span><strong class="material-price">₹${prices[name].toLocaleString("en-IN")} / sq. ft.</strong></button>`).join("");list.querySelectorAll("[data-material]").forEach(b=>b.addEventListener("click",()=>showCatalogue(b.dataset.material)));document.querySelectorAll(".category-card").forEach(b=>b.classList.toggle("selected",b.dataset.category===category));go(materialSection);}
+function showCatalogue(material){activeMaterial=material;hideViews();catalogue.hidden=false;$("catalogueTitle").textContent=material+" doors";$("catalogueDescription").textContent=`Sample ${material} catalogue · Indicative rate ₹${prices[material].toLocaleString("en-IN")} per sq. ft.`;renderProducts();go(catalogue);}
+function renderProducts(){let list=designs.slice();const q=$("productSearch").value.trim().toLowerCase(),style=$("styleFilter").value,sort=$("sortProducts").value;list=list.filter(d=>(!q||(d[0]+" "+d[1]).toLowerCase().includes(q))&&(style==="all"||d[2]===style));if(sort==="low")list.reverse();if(sort==="high")list.sort((a,b)=>b[0].localeCompare(a[0]));$("productGrid").innerHTML=list.map(d=>`<button class="product-card" data-design="${d[0]}"><div class="door-art"><span class="design-tag">SAMPLE DESIGN</span><div class="door-leaf ${styleClass(d[2])}"></div></div><div class="product-info"><small>${d[0]} · ${d[2]}</small><b>${d[1]}</b><div class="product-meta"><span>${activeMaterial}</span><strong>₹${prices[activeMaterial]} / sq. ft.</strong></div></div></button>`).join("")||"<p>No sample designs match your search.</p>";$("productGrid").querySelectorAll("[data-design]").forEach(b=>b.addEventListener("click",()=>showProduct(b.dataset.design)));}
+function styleClass(style){return style==="Modern"?"style-modern":style==="Geometric"?"style-geometric":style==="Classic"?"style-classic":"style-wood";}
+function showProduct(id){activeProduct=designs.find(d=>d[0]===id);hideViews();detail.hidden=false;detail.innerHTML=`<button class="back-link" id="backCatalogue">← Back to ${activeMaterial} designs</button><div class="detail-layout"><div><div class="door-art detail-main-art"><span class="design-tag">${activeProduct[0]}</span><div class="door-leaf ${styleClass(activeProduct[2])}"></div></div><div class="detail-thumbs"><button class="thumb">Front</button><button class="thumb">Finish</button><button class="thumb">Detail</button></div></div><div class="detail-copy"><span class="eyebrow">PRABHAT DOORS · SAMPLE PRODUCT</span><h2>${activeProduct[1]}</h2><p>Design number: <b>${activeProduct[0]}</b></p><div class="detail-price">₹${prices[activeMaterial].toLocaleString("en-IN")} <small>per sq. ft. · indicative</small></div><p>${activeProduct[3]} ${materialDescriptions[activeMaterial]}</p><div class="spec-list"><div class="spec-row"><span>Material</span><b>${activeMaterial}</b></div><div class="spec-row"><span>Category</span><b>${activeCategory}</b></div><div class="spec-row"><span>Design style</span><b>${activeProduct[2]}</b></div><div class="spec-row"><span>Availability</span><b>Sample only</b></div></div><div class="detail-actions"><button class="btn primary" id="productEnquiry">Enquire about this design</button><button class="outline-btn" id="saveDesign">♡ Save design</button></div><p class="demo-note">Temporary illustration and sample design number. Actual product details will be supplied by Prabhat Doors.</p></div></div>`;$("backCatalogue").onclick=()=>showCatalogue(activeMaterial);$("productEnquiry").onclick=()=>openEnquiry(`${activeProduct[0]} · ${activeProduct[1]} · ${activeMaterial}`);$("saveDesign").onclick=e=>{e.currentTarget.textContent="♥ Saved (demo)";};go(detail);}
+document.querySelectorAll(".category-card").forEach(b=>b.addEventListener("click",()=>showMaterials(b.dataset.category)));
+$("backCategories").onclick=()=>{hideViews();go($("categories"));};
+$("backMaterials").onclick=()=>showMaterials(activeCategory);
+["productSearch","styleFilter","sortProducts"].forEach(id=>$(id).addEventListener(id==="productSearch"?"input":"change",renderProducts));
+$("calcBtn").onclick=()=>{const w=Number($("calcWidth").value),h=Number($("calcHeight").value);$("calcOutput").textContent=w>0&&h>0?`Estimated area: ${(w*h/144).toFixed(2)} sq. ft. (${w} × ${h} inches). This is a basic area estimate, not a final quote.`:"Please enter valid width and height in inches.";};
+function openEnquiry(product="General door enquiry"){ $("enquiryProduct").textContent=`Selected requirement: ${product}. Demonstration only — no message will be sent.`;$("enquiryText").value=product;$("enquiryMessage").textContent="";$("enquiryDialog").showModal();}
+$("generalEnquiry").onclick=()=>openEnquiry();$("previewEnquiry").onclick=e=>{e.preventDefault();$("enquiryMessage").textContent="Demo preview ready. No enquiry has been sent or stored.";};
+$("ownerBtn").onclick=()=>$("ownerDialog").showModal();$("closeOwner").onclick=()=>$("ownerDialog").close();
+$("menuBtn").onclick=()=>{const nav=document.querySelector(".desktop-nav");nav.style.display=nav.style.display==="flex"?"none":"flex";nav.style.position="absolute";nav.style.top="66px";nav.style.left="0";nav.style.right="0";nav.style.padding="18px";nav.style.background="#fffefa";nav.style.flexDirection="column";};
+$("addDoor").onclick=()=>{const row=document.createElement("div");row.className="project-door-row";row.innerHTML=`<label>Location<select><option>Bedroom</option><option>Bathroom</option><option>Main door</option><option>For terrace</option></select></label><label>Material<select><option>WPVC</option><option>Tough PVC</option><option>Laminate Door</option><option>Lamination Door</option></select></label><label>Quantity<input type="number" min="1" value="1"></label>`;$("projectDoors").appendChild(row);};
+$("builderSubmit").onclick=()=>{const name=$("builderName").value.trim(),mobile=$("builderMobile").value.trim();const rows=[...document.querySelectorAll(".project-door-row")].map(r=>{const s=r.querySelectorAll("select"),q=r.querySelector("input").value;return `${s[0].value} / ${s[1].value} / Qty ${q}`;});$("builderMessage").textContent=`Demo preview for ${name||"Builder"}: ${rows.join("; ")}. No quotation request has been submitted.`;};
+const translations={en:{},hi:{},mr:{}};$("language").addEventListener("change",e=>{document.documentElement.lang=e.target.value;const note={en:"Language preference selected.",hi:"भाषा चुनी गई।",mr:"भाषा निवडली."};$("calcOutput").textContent=note[e.target.value]+" Enter measurements to calculate an estimate.";});
+hideViews();
