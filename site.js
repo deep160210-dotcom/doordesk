@@ -24,14 +24,99 @@ $("backCategories").onclick=()=>{hideViews();go($("categories"));};
 $("backMaterials").onclick=()=>showMaterials(activeCategory);
 ["productSearch","styleFilter","sortProducts"].forEach(id=>$(id).addEventListener(id==="productSearch"?"input":"change",renderProducts));
 $("calcBtn").onclick=()=>{const w=Number($("calcWidth").value),h=Number($("calcHeight").value);$("calcOutput").textContent=w>0&&h>0?`Estimated area: ${(w*h/144).toFixed(2)} sq. ft. (${w} × ${h} inches). This is a basic area estimate, not a final quote.`:"Please enter valid width and height in inches.";};
-function openEnquiry(product="General door enquiry"){ $("enquiryProduct").textContent=`Selected requirement: ${product}. Demo only — saved on this device, not sent to the shop.`;$("enquiryText").value=product;$("enquiryMessage").textContent="";$("enquiryDialog").showModal();}
-function saveDemoRecord(type,record){const key="prabhatDemoRecords";const all=JSON.parse(localStorage.getItem(key)||"[]");record.id="PD-"+Date.now().toString().slice(-8);record.type=type;record.createdAt=new Date().toLocaleString("en-IN");all.unshift(record);localStorage.setItem(key,JSON.stringify(all));return record.id;}
-function openOrder(){const label=activeProduct?`${activeProduct[0]} · ${activeProduct[1]} · ${activeMaterial} · ${activeCategory}`:"General door requirement";$("orderProduct").textContent=label;$("orderMessage").textContent="";$("orderDialog").showModal();}
-$("submitOrder").onclick=e=>{e.preventDefault();const name=$("orderName").value.trim(),mobile=$("orderMobile").value.trim(),w=Number($("orderWidth").value),h=Number($("orderHeight").value);if(!name||!/^\d{10}$/.test(mobile)||w<=0||h<=0){$("orderMessage").textContent="Enter your name, a valid 10-digit mobile number and both measurements.";return;}const id=saveDemoRecord("order / quotation",{name,mobile,product:$("orderProduct").textContent,width:w,height:h,area:(w*h/144).toFixed(2),frame:$("orderFrame").value,request:$("orderType").value,notes:$("orderNotes").value});$("orderMessage").textContent=`Saved as ${id}. This is a local demo record only; the shop has NOT received it.`;};
-$("generalEnquiry").onclick=()=>openEnquiry();$("previewEnquiry").onclick=e=>{e.preventDefault();const name=$("enquiryName").value.trim(),mobile=$("enquiryMobile").value.trim(),message=$("enquiryText").value.trim();if(!name||!/^\d{10}$/.test(mobile)||!message){$("enquiryMessage").textContent="Please enter your name, valid 10-digit mobile and message.";return;}const id=saveDemoRecord("enquiry",{name,mobile,message});$("enquiryMessage").textContent=`Enquiry ${id} saved on this device. It has NOT been sent to the shop.`;};
-$("ownerBtn").onclick=()=>$("ownerDialog").showModal();$("closeOwner").onclick=()=>$("ownerDialog").close();
+
+let pdAuth=null,pdDb=null,pdUser=null,pdRole="customer",pdDbMod=null,pdAuthMod=null;
+const pdFirebaseReady=(async()=>{
+ const [{firebaseConfig,isConfigured},appM,authM,dbM]=await Promise.all([
+  import("./config.js"),
+  import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js"),
+  import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js"),
+  import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js")
+ ]);
+ if(!isConfigured)throw new Error("Firebase is not configured in config.js.");
+ const app=appM.initializeApp(firebaseConfig);
+ pdAuth=authM.getAuth(app);pdDb=dbM.getFirestore(app);pdAuthMod=authM;pdDbMod=dbM;
+ authM.onAuthStateChanged(pdAuth,async u=>{
+  pdUser=u;pdRole="customer";
+  if(u){try{const s=await dbM.getDoc(dbM.doc(pdDb,"users",u.uid));pdRole=s.exists()?s.data().role:"customer";}catch(e){console.error(e)}}
+  const b=$("ownerBtn");if(b)b.textContent=u?(pdRole==="owner"?"Owner dashboard":"My account"):"Sign in";
+ });
+ return true;
+})();
+function pdAuthDialog(){
+ let d=$("pdAccountDialog");if(d)return d;
+ d=document.createElement("dialog");d.id="pdAccountDialog";
+ d.innerHTML=`<form method="dialog" class="dialog-content"><button class="dialog-close" aria-label="Close">×</button><span class="eyebrow">PRABHAT DOORS ACCOUNT</span><h2>Sign in to continue</h2><p class="muted">Browse freely. Sign in or create a free account to send orders and enquiries.</p><label>Email address<input id="pdEmail" type="email" required></label><label>Password<input id="pdPassword" type="password" minlength="6" required></label><button class="btn primary full" id="pdSignIn">Sign in</button><button class="outline-btn full" type="button" id="pdSignUp">Create customer account</button><p id="pdAuthMsg" class="form-message"></p></form>`;
+ document.body.appendChild(d);
+ $("pdSignIn").onclick=async e=>{e.preventDefault();try{await pdFirebaseReady;await pdAuthMod.signInWithEmailAndPassword(pdAuth,$("pdEmail").value.trim(),$("pdPassword").value);d.close();}catch(x){$("pdAuthMsg").textContent=pdErr(x)}};
+ $("pdSignUp").onclick=async()=>{try{await pdFirebaseReady;const email=$("pdEmail").value.trim(),password=$("pdPassword").value;if(!email||password.length<6)throw new Error("Enter a valid email and password of at least 6 characters.");const c=await pdAuthMod.createUserWithEmailAndPassword(pdAuth,email,password);await pdDbMod.setDoc(pdDbMod.doc(pdDb,"users",c.user.uid),{role:"customer",email,createdAt:pdDbMod.serverTimestamp()});d.close();}catch(x){$("pdAuthMsg").textContent=pdErr(x)}};
+ return d;
+}
+function pdErr(e){return ({ "auth/email-already-in-use":"This email already has an account. Please sign in.","auth/invalid-credential":"Email or password is incorrect.","auth/invalid-email":"Enter a valid email address.","auth/weak-password":"Use a password with at least 6 characters.","auth/network-request-failed":"Network error. Please try again."})[e.code]||e.message||"Something went wrong."}
+async function pdRequireLogin(){
+ await pdFirebaseReady;
+ if(pdUser)return true;
+ const d=pdAuthDialog();d.showModal();$("pdAuthMsg").textContent="Sign in or create an account, then submit your request again.";return false;
+}
+async function pdSave(collectionName,data){
+ await pdFirebaseReady;
+ if(!pdUser)throw new Error("Please sign in first.");
+ const ref=await pdDbMod.addDoc(pdDbMod.collection(pdDb,collectionName),{
+  ...data,customerUid:pdUser.uid,customerEmail:pdUser.email||"",status:"New",createdAt:pdDbMod.serverTimestamp()
+ });
+ return ref.id;
+}
+function openEnquiry(product="General door enquiry"){
+ $("enquiryProduct").textContent=`Selected requirement: ${product}. Sign in is required to send this enquiry.`;
+ $("enquiryText").value=product;$("enquiryMessage").textContent="";$("enquiryDialog").showModal();
+}
+function openOrder(){
+ const label=activeProduct?`${activeProduct[0]} · ${activeProduct[1]} · ${activeMaterial} · ${activeCategory}`:"General door requirement";
+ $("orderProduct").textContent=label;$("orderMessage").textContent="";$("orderDialog").showModal();
+}
+$("submitOrder").onclick=async e=>{
+ e.preventDefault();
+ if(!(await pdRequireLogin()))return;
+ const name=$("orderName").value.trim(),mobile=$("orderMobile").value.trim(),w=Number($("orderWidth").value),h=Number($("orderHeight").value);
+ if(!name||!/^\d{10}$/.test(mobile)||w<=0||h<=0){$("orderMessage").textContent="Enter your name, valid 10-digit mobile number and measurements.";return;}
+ const btn=$("submitOrder");btn.disabled=true;
+ try{const id=await pdSave("orders",{customerName:name,phone:mobile,product:$("orderProduct").textContent,widthInches:w,heightInches:h,estimatedAreaSqFt:Number((w*h/144).toFixed(2)),frameType:$("orderFrame").value,requestType:$("orderType").value,notes:$("orderNotes").value.trim()});$("orderMessage").textContent=`Request received by the shop. Reference: ${id}`;}
+ catch(x){$("orderMessage").textContent=pdErr(x)}finally{btn.disabled=false}
+};
+$("previewEnquiry").onclick=async e=>{
+ e.preventDefault();
+ if(!(await pdRequireLogin()))return;
+ const name=$("enquiryName").value.trim(),mobile=$("enquiryMobile").value.trim(),message=$("enquiryText").value.trim();
+ if(!name||!/^\d{10}$/.test(mobile)||!message){$("enquiryMessage").textContent="Enter your name, valid mobile number and message.";return;}
+ const btn=$("previewEnquiry");btn.disabled=true;
+ try{const id=await pdSave("enquiries",{customerName:name,phone:mobile,message,productContext:$("enquiryProduct").textContent});$("enquiryMessage").textContent=`Enquiry sent to the shop. Reference: ${id}`;}
+ catch(x){$("enquiryMessage").textContent=pdErr(x)}finally{btn.disabled=false}
+};
+$("generalEnquiry").onclick=()=>openEnquiry();
+$("ownerBtn").onclick=async()=>{
+ try{await pdFirebaseReady;if(!pdUser){pdAuthDialog().showModal();return;}if(pdRole!=="owner"){alert("This account is not the shop owner account.");return;}await pdShowOwner();}
+ catch(x){alert(pdErr(x))}
+};
+async function pdShowOwner(){
+ let d=$("pdOwnerDialog");if(!d){d=document.createElement("dialog");d.id="pdOwnerDialog";d.innerHTML=`<div class="dialog-content"><button class="dialog-close" id="pdOwnerClose">×</button><span class="eyebrow">LIVE OWNER DASHBOARD</span><h2>Customer requests</h2><div id="pdOwnerRecords">Loading…</div></div>`;document.body.appendChild(d);$("pdOwnerClose").onclick=()=>d.close();}
+ d.showModal();
+ const cols=["orders","enquiries","builderRequests"],snapshots={};
+ const draw=()=>{const all=cols.flatMap(c=>(snapshots[c]||[]).map(x=>({...x,kind:c})));all.sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));$("pdOwnerRecords").innerHTML=all.length?all.map(x=>`<div class="card" style="margin:10px 0;padding:12px"><b>${x.kind==="orders"?"Order / quotation":x.kind==="enquiries"?"Customer enquiry":"Builder project enquiry"}</b><p>${pdEsc(x.customerName)} · ${pdEsc(x.phone)}</p><p>${pdEsc(x.product||x.productContext||x.message||x.projectName||"")}</p><small>Status: ${pdEsc(x.status||"New")} · ${pdEsc(x.customerEmail||"")}</small></div>`).join(""):"No requests received yet.";};
+ cols.forEach(c=>pdDbMod.onSnapshot(pdDbMod.query(pdDbMod.collection(pdDb,c),pdDbMod.orderBy("createdAt","desc")),s=>{snapshots[c]=s.docs.map(x=>({id:x.id,...x.data()}));draw();},e=>{$("pdOwnerRecords").textContent="Could not load records: "+pdErr(e)}));
+}
+function pdEsc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+$("builderSubmit").onclick=async e=>{
+ e.preventDefault();
+ if(!(await pdRequireLogin()))return;
+ const name=$("builderName").value.trim(),mobile=$("builderMobile").value.trim();
+ if(!name||!/^\d{10}$/.test(mobile)){$("builderMessage").textContent="Enter your name and valid 10-digit mobile number.";return;}
+ const doors=[...document.querySelectorAll(".project-door-row")].map(r=>{const s=r.querySelectorAll("select");return {location:s[0]?.value||"",material:s[1]?.value||"",quantity:Number(r.querySelector("input")?.value||1)}});
+ const btn=$("builderSubmit");btn.disabled=true;
+ try{const id=await pdSave("builderRequests",{customerName:name,phone:mobile,projectName:$("projectName").value.trim(),doors});$("builderMessage").textContent=`Project enquiry sent to the shop. Reference: ${id}`;}
+ catch(x){$("builderMessage").textContent=pdErr(x)}finally{btn.disabled=false}
+};
+
 $("menuBtn").onclick=()=>{const nav=document.querySelector(".desktop-nav");nav.style.display=nav.style.display==="flex"?"none":"flex";nav.style.position="absolute";nav.style.top="66px";nav.style.left="0";nav.style.right="0";nav.style.padding="18px";nav.style.background="#fffefa";nav.style.flexDirection="column";};
 $("addDoor").onclick=()=>{const row=document.createElement("div");row.className="project-door-row";row.innerHTML=`<label>Location<select><option>Bedroom</option><option>Bathroom</option><option>Main door</option><option>For terrace</option></select></label><label>Material<select><option>WPVC</option><option>Tough PVC</option><option>Laminate Door</option><option>Lamination Door</option></select></label><label>Quantity<input type="number" min="1" value="1"></label>`;$("projectDoors").appendChild(row);};
-$("builderSubmit").onclick=()=>{const name=$("builderName").value.trim(),mobile=$("builderMobile").value.trim();if(!name||!/^\d{10}$/.test(mobile)){ $("builderMessage").textContent="Please enter your name and valid 10-digit mobile number.";return;}const rows=[...document.querySelectorAll(".project-door-row")].map(r=>{const s=r.querySelectorAll("select"),q=r.querySelector("input").value;return `${s[0].value} / ${s[1].value} / Qty ${q}`;});const id=saveDemoRecord("builder quotation",{name,mobile,project:$("projectName").value,doors:rows});$("builderMessage").textContent=`Project request ${id} saved on this device. It has NOT been sent to the shop.`;};
 const translations={en:{},hi:{},mr:{}};$("language").addEventListener("change",e=>{document.documentElement.lang=e.target.value;const note={en:"Language preference selected.",hi:"भाषा चुनी गई।",mr:"भाषा निवडली."};$("calcOutput").textContent=note[e.target.value]+" Enter measurements to calculate an estimate.";});
 hideViews();
