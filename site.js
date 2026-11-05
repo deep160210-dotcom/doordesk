@@ -6,37 +6,73 @@ const recommendations = {
   "For terrace": ["Laminate Door", "WPVC", "Lamination Door", "Tough PVC"]
 };
 
-const notes = {
-  "Laminate Door": "Shop-recommended option",
-  "WPVC": "Confirm site and moisture suitability",
-  "Tough PVC": "Practical option; sheet-size rules apply",
-  "Lamination Door": "Compare finish and installation requirements"
+const prices = {
+  "WPVC": 200,
+  "Tough PVC": 120,
+  "Laminate Door": 250,
+  "Lamination Door": 130
+};
+
+const descriptions = {
+  "WPVC": "Confirm site and installation suitability with the shop.",
+  "Tough PVC": "Uses fixed sheet sizes. Final billing depends on the sheet required.",
+  "Laminate Door": "Explore available laminate finishes and designs.",
+  "Lamination Door": "Explore available laminated finishes and designs."
 };
 
 const materials = document.getElementById("materials");
-const materialTitle = document.getElementById("materialTitle");
+const title = document.getElementById("materialTitle");
+const section = materials.closest(".section");
+
+let selectedCategory = null;
 
 function showMaterials(category) {
-  materialTitle.textContent = "Recommended for " + category;
+  selectedCategory = category;
+  section.hidden = false;
+
+  document.querySelectorAll(".category").forEach(button => {
+    button.classList.toggle("active", button.dataset.category === category);
+  });
+
+  title.textContent = "Recommended for " + category;
 
   materials.innerHTML = recommendations[category].map((name, i) => `
-    <article class="material">
+    <button type="button" class="material material-button" data-material="${name}">
       <span class="rank">${i + 1}</span>
-      <div>
-        <b>${name}</b>
-        <small>${notes[name]}</small>
-      </div>
-    </article>
+      <span><b>${name}</b><small>View material and price details</small></span>
+      <span>›</span>
+    </button>
   `).join("");
+
+  materials.querySelectorAll("[data-material]").forEach(button => {
+    button.addEventListener("click", () => showDetails(button.dataset.material));
+  });
+
+  section.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function showDetails(name) {
+  materials.innerHTML = `
+    <div class="material-detail">
+      <button type="button" id="backMaterials">← Back to materials</button>
+      <p class="eyebrow">MATERIAL DETAILS</p>
+      <h3>${name}</h3>
+      <h2>₹${prices[name].toLocaleString("en-IN")} <small>per sq. ft.</small></h2>
+      <p>${descriptions[name]}</p>
+      <div class="catalogue-placeholder">
+        <b>Door designs will appear here</b>
+        <p>Product photos and original design numbers will be added when the shop catalogue is uploaded.</p>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("backMaterials").addEventListener("click", () => {
+    showMaterials(selectedCategory);
+  });
 }
 
 document.querySelectorAll(".category").forEach(button => {
   button.addEventListener("click", () => {
-    document.querySelectorAll(".category").forEach(item =>
-      item.classList.remove("active")
-    );
-
-    button.classList.add("active");
     showMaterials(button.dataset.category);
   });
 });
@@ -47,14 +83,12 @@ document.getElementById("calculate").addEventListener("click", () => {
   const result = document.getElementById("result");
 
   if (width <= 0 || height <= 0) {
-    result.textContent = "Please enter valid width and height.";
+    result.textContent = "Please enter valid measurements in inches.";
     return;
   }
 
   result.textContent =
-    "Estimated area: " +
-    (width * height / 144).toFixed(2) +
-    " sq. ft.";
+    `Estimated area: ${(width * height / 144).toFixed(2)} sq. ft.`;
 });
 
 document.getElementById("ownerBtn").addEventListener("click", () => {
@@ -65,4 +99,4 @@ document.getElementById("enquiryBtn").addEventListener("click", () => {
   document.getElementById("enquiryDialog").showModal();
 });
 
-showMaterials("Bedroom");
+section.hidden = true;
