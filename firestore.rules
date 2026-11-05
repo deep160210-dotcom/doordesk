@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isOwner() { return signedIn() && role() == "owner"; }
+    function isStaff() { return signedIn() && (role() == "staff" || role() == "owner"); }
+    function isCustomer() { return signedIn() && role() == "customer"; }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isOwner());
+      // Owner assigns roles in Firebase Console. Users cannot promote themselves.
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == "customer";
+      allow update, delete: if isOwner();
+    }
+    match /products/{id} {
+      allow read: if true;
+      allow create, update, delete: if isStaff();
+    }
+    match /orders/{id} {
+      allow create: if isStaff() ||
+        (isCustomer() && request.resource.data.customerUid == request.auth.uid);
+      allow read: if isStaff() ||
+        (isCustomer() && resource.data.customerUid == request.auth.uid);
+      allow update: if isStaff() ||
+        (isCustomer() && resource.data.customerUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["customerNote"]));
+      allow delete: if isOwner();
+    }
+    match /customers/{id} {
+      allow read, create, update: if isStaff();
+      allow delete: if isOwner();
+    }
+  }
+}

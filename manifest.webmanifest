@@ -1,0 +1,9 @@
+{
+  "name": "DoorDesk Shop Management",
+  "short_name": "DoorDesk",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f8f6",
+  "theme_color": "#172b25",
+  "icons": []
+}
