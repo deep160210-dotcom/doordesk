@@ -1,9 +1,12 @@
-// Add your Firebase web-app configuration here after creating a free Firebase project.
-// Do not paste private service-account keys here. These are public client configuration values.
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 export const firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE_PROJECT.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  appId: "PASTE_APP_ID"
+  apiKey: "AIzaSyDuM9i14angKR2cv50Q4rF6Xk4cRzfeTMc",
+  authDomain: "doordesk-shop.firebaseapp.com",
+  projectId: "doordesk-shop",
+  storageBucket: "doordesk-shop.firebasestorage.app",
+  messagingSenderId: "515857906300",
+  appId: "1:515857906300:web:f65e3e08982d684a56a7f9",
+  measurementId: "G-R5ZDHTQBSR"
 };
-export const isConfigured = !Object.values(firebaseConfig).some(v => String(v).startsWith("PASTE_"));
+
+export const isConfigured = true;
