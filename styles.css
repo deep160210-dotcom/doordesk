@@ -1,56 +1,35 @@
 
-*{box-sizing:border-box}
-:root{--g:#293f34;--cream:#f3efe5;--paper:#fffdf8;--ink:#202820;--muted:#72796f;--line:#e5e1d7}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-.topbar{height:70px;padding:0 5vw;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:#fffdf8;position:sticky;top:0;z-index:3}
-.brand{display:flex;gap:10px;align-items:center;text-decoration:none;color:inherit;font-weight:750;font-size:19px}
-.brand small{display:block;font-size:10px;color:var(--muted);font-weight:400}
-.mark{width:36px;height:36px;border-radius:10px;background:var(--g);color:white;display:grid;place-items:center;font:24px Georgia}
-.topbar button,.topbar select{padding:9px 12px;border:1px solid var(--line);background:white;border-radius:8px}
-.hero{max-width:1150px;margin:22px auto;background:var(--cream);border-radius:20px;padding:clamp(28px,6vw,70px);display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:20px;overflow:hidden}
-.eyebrow{font-size:10px;letter-spacing:2px;font-weight:750;color:#496453;margin:0 0 12px}
-.hero h1{font:500 clamp(42px,6vw,68px)/.98 Georgia;letter-spacing:-2px;margin:0 0 18px}
-.hero p:not(.eyebrow),.calculator p,.contact p{color:var(--muted);line-height:1.65;font-size:13px}
-.primary{display:inline-block;border:0;border-radius:9px;background:var(--g);color:white;padding:13px 18px;text-decoration:none;font-weight:650;cursor:pointer;margin-top:10px}
-.art{height:245px;position:relative;display:flex;align-items:end;justify-content:center}
-.roof{position:absolute;top:12px;width:270px;height:100px;background:#8b7863;clip-path:polygon(50% 0,100% 100%,0 100%)}
-.house{height:190px;width:230px;background:#e2d6c1;border:7px solid #d2c3aa;border-bottom:0;position:relative}
-.door{position:absolute;bottom:0;left:70px;width:80px;height:145px;background:#76553d;border:5px solid #60452f;border-bottom:0;border-radius:35px 35px 0 0}
-.door:after{content:"";position:absolute;right:9px;top:72px;width:6px;height:6px;border-radius:50%;background:#d6b46b}
-.window{position:absolute;right:10px;top:50px;width:42px;height:50px;background:#b8c9c1;border:5px solid #f6f0e3}
-.plant{position:absolute;left:5%;bottom:0;color:#70856c;font-size:50px}
-.section{max-width:1080px;margin:65px auto;padding:0 22px}
-h2{font:500 clamp(27px,4vw,36px) Georgia;margin:0 0 20px}
-.categories,.materials{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.category{padding:18px;text-align:left;border:1px solid var(--line);border-radius:12px;background:white;cursor:pointer;color:var(--g);font-size:22px}
-.category b,.category small{display:block;margin-left:34px}
-.category b{font-size:13px;letter-spacing:.5px}
-.category small{font-size:11px;color:var(--muted);margin-top:4px}
-.category.active{background:#f1f5ef;border-color:var(--g)}
-.material{display:flex;align-items:center;gap:14px;padding:18px;border:1px solid var(--line);border-radius:12px;background:white}
-.rank{width:31px;height:31px;border-radius:50%;background:var(--cream);display:grid;place-items:center;color:var(--g)}
-.material b{font-size:14px}
-.material small{display:block;color:var(--muted);font-size:11px;margin-top:5px}
-.note{font-size:11px;color:var(--muted);margin-top:14px}
-.calculator{background:#f3f1e9;border-radius:17px;padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:25px}
-.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.fields label{font-size:11px;color:var(--muted)}
-input{display:block;width:100%;padding:11px;border:1px solid #ddd8cc;border-radius:8px;margin-top:6px}
-.fields button,.fields p{grid-column:1/-1}
-.fields p{font-weight:650;color:var(--g)}
-.contact{max-width:1036px;margin:55px auto;padding:28px;background:#e8ede6;border-radius:16px;display:flex;justify-content:space-between;align-items:center;gap:20px}
-footer{padding:25px 6vw;border-top:1px solid var(--line);display:flex;gap:15px;flex-wrap:wrap;font-size:12px}
-footer span,footer small{color:var(--muted)}
-footer small{margin-left:auto}
-dialog{border:0;border-radius:15px;padding:25px;max-width:370px;width:calc(100% - 30px);box-shadow:0 20px 60px #0003}
-dialog::backdrop{background:#14201988}
-dialog form{position:relative}
-.close{position:absolute;right:0;top:-12px;border:0;background:none;font-size:25px}
-@media(max-width:680px){
-.hero{margin:12px;grid-template-columns:1fr;padding:27px 22px 5px}
-.art{height:205px}
-.section{margin:48px auto}
-.categories,.materials,.calculator{grid-template-columns:1fr}
-.contact{margin:40px 12px;align-items:flex-start;flex-direction:column}
-footer small{margin-left:0;width:100%}
+[hidden]{display:none!important}
+.material-button{
+  width:100%;
+  text-align:left;
+  color:var(--ink);
+  cursor:pointer;
+  font:inherit;
+}
+.material-button:hover{border-color:var(--g);background:#f1f5ef}
+.material-copy{flex:1}
+.material-arrow{font-size:25px;color:var(--g)}
+.material-detail{
+  background:white;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:22px;
+}
+.material-detail h3{font:32px Georgia;margin:15px 0}
+.material-detail h2{color:var(--g)}
+.material-detail h2 small{font-size:13px}
+#backMaterials{
+  border:0;
+  background:var(--cream);
+  padding:10px 14px;
+  border-radius:8px;
+  cursor:pointer;
+}
+.catalogue-placeholder{
+  margin-top:20px;
+  padding:30px 15px;
+  background:var(--cream);
+  border-radius:12px;
+  text-align:center;
 }
