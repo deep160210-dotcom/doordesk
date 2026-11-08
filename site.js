@@ -125,3 +125,101 @@ $("menuBtn").onclick=()=>{const nav=document.querySelector(".desktop-nav");nav.s
 $("addDoor").onclick=()=>{const row=document.createElement("div");row.className="project-door-row";row.innerHTML=`<label>Location<select><option>Bedroom</option><option>Bathroom</option><option>Main door</option><option>For terrace</option></select></label><label>Material<select><option>WPVC</option><option>Tough PVC</option><option>Laminate Door</option><option>Lamination Door</option></select></label><label>Quantity<input type="number" min="1" value="1"></label>`;$("projectDoors").appendChild(row);};
 const translations={en:{},hi:{},mr:{}};$("language").addEventListener("change",e=>{document.documentElement.lang=e.target.value;const note={en:"Language preference selected.",hi:"भाषा चुनी गई।",mr:"भाषा निवडली."};$("calcOutput").textContent=note[e.target.value]+" Enter measurements to calculate an estimate.";});
 hideViews();
+
+
+// Prabhat Doors 2.0 — owner admin panel navigation
+let pdAdminTab = "overview";
+let pdAdminUnsubs = [];
+let pdAdminCache = {orders:[], enquiries:[], builderRequests:[], products:[], users:[]};
+
+function pdAdminStop(){
+  pdAdminUnsubs.forEach(fn=>{try{fn()}catch{}});
+  pdAdminUnsubs=[];
+}
+function pdAdminDate(v){
+  try{return v?.toDate ? v.toDate().toLocaleString("en-IN") : "—"}catch{return "—"}
+}
+function pdAdminShell(){
+  let d=$("pdOwnerDialog");
+  if(!d){
+    d=document.createElement("dialog"); d.id="pdOwnerDialog";
+    document.body.appendChild(d);
+  }
+  d.className="pd-admin-dialog";
+  d.innerHTML=`<div class="dialog-content pd-admin">
+    <button class="dialog-close" id="pdOwnerClose" aria-label="Close">×</button>
+    <span class="eyebrow">PRABHAT DOORS · ADMINISTRATION</span>
+    <h2>Admin dashboard</h2>
+    <nav class="pd-admin-nav" aria-label="Admin sections">
+      <button data-admin-tab="overview">Overview</button>
+      <button data-admin-tab="orders">Orders & enquiries</button>
+      <button data-admin-tab="products">Products</button>
+      <button data-admin-tab="customers">Customers</button>
+    </nav>
+    <p class="pd-admin-note">Live information from your Firebase database. Product records shown here are not yet connected to the public sample catalogue.</p>
+    <section id="pdAdminContent">Loading your business data…</section>
+  </div>`;
+  $("pdOwnerClose").onclick=()=>{pdAdminStop();d.close()};
+  d.querySelectorAll("[data-admin-tab]").forEach(b=>b.onclick=()=>{pdAdminTab=b.dataset.adminTab;pdAdminRender()});
+  return d;
+}
+function pdAdminRender(){
+  const host=$("pdAdminContent"); if(!host)return;
+  const all=[...pdAdminCache.orders.map(x=>({...x,kind:"Order"})),...pdAdminCache.enquiries.map(x=>({...x,kind:"Enquiry"})),...pdAdminCache.builderRequests.map(x=>({...x,kind:"Project enquiry"}))].sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+  $("pdOwnerDialog").querySelectorAll("[data-admin-tab]").forEach(b=>b.classList.toggle("active",b.dataset.adminTab===pdAdminTab));
+  if(pdAdminTab==="overview"){
+    host.innerHTML=`<div class="pd-admin-stats">
+      <article><small>Total requests</small><strong>${all.length}</strong></article>
+      <article><small>New requests</small><strong>${all.filter(x=>(x.status||"New")==="New").length}</strong></article>
+      <article><small>Products in database</small><strong>${pdAdminCache.products.length}</strong></article>
+      <article><small>Customer accounts</small><strong>${pdAdminCache.users.filter(x=>x.role==="customer").length}</strong></article>
+    </div><h3>Recent requests</h3>${pdAdminRequestList(all.slice(0,8))}`;
+  } else if(pdAdminTab==="orders"){
+    host.innerHTML=`<h3>Orders and enquiries</h3>${pdAdminRequestList(all)}`;
+  } else if(pdAdminTab==="products"){
+    host.innerHTML=`<div class="pd-admin-heading"><div><h3>Product records</h3><small>Saved in Firestore · public catalogue integration is a later step</small></div><button class="btn primary" id="pdAddProduct">+ Add product</button></div>
+      ${pdAdminCache.products.length?pdAdminCache.products.map(x=>`<article class="pd-admin-row"><b>${pdEsc(x.name||x.title||"Unnamed product")}</b><span>${pdEsc(x.code||x.productCode||"No code")} · ${pdEsc(x.material||"Material not set")}</span><small>${pdEsc(x.category||"Category not set")} · ${pdEsc(x.available===false?"Unavailable":"Availability not specified")}</small></article>`).join(""):"<p>No product records in Firestore yet. Add a real product record when you are ready.</p>"}`;
+    const add=$("pdAddProduct"); if(add)add.onclick=async()=>{
+      const name=prompt("Product name"); if(!name?.trim())return;
+      const code=prompt("Product code (e.g. PD-201)"); if(!code?.trim())return;
+      const material=prompt("Material (WPVC / Tough PVC / Laminate Door / Lamination Door)"); if(!material?.trim())return;
+      const category=prompt("Category"); if(!category?.trim())return;
+      try{
+        await pdDbMod.addDoc(pdDbMod.collection(pdDb,"products"),{name:name.trim(),code:code.trim(),material:material.trim(),category:category.trim(),available:true,createdAt:pdDbMod.serverTimestamp(),updatedAt:pdDbMod.serverTimestamp()});
+        alert("Product record saved in Firebase. It is not yet published to the customer catalogue.");
+      }catch(e){alert("Could not save product: "+pdErr(e))}
+    };
+  } else if(pdAdminTab==="customers"){
+    const customers=pdAdminCache.users.filter(x=>x.role==="customer");
+    host.innerHTML=`<h3>Registered customer accounts</h3>${customers.length?customers.map(x=>`<article class="pd-admin-row"><b>${pdEsc(x.name||x.email||"Customer")}</b><span>${pdEsc(x.email||"")}</span><small>Role: customer · UID: ${pdEsc(x.id)}</small></article>`).join(""):"No customer profile records found."}`;
+  }
+}
+function pdAdminRequestList(items){
+  return items.length?items.map(x=>`<article class="pd-admin-row"><div class="pd-admin-heading"><b>${pdEsc(x.kind)}</b><small>${pdEsc(x.status||"New")}</small></div><b>${pdEsc(x.customerName||"Customer")}</b><span>${pdEsc(x.phone||"")} · ${pdEsc(x.customerEmail||"")}</span><span>${pdEsc(x.product||x.productContext||x.message||x.projectName||"Request details not supplied")}</span><small>${pdAdminDate(x.createdAt)} · Ref: ${pdEsc(x.id)}</small></article>`).join(""):"<p>No requests found.</p>";
+}
+async function pdShowOwner(){
+  await pdFirebaseReady;
+  if(pdAuthStateReady)await pdAuthStateReady;
+  if(!pdUser||pdRole!=="owner")throw new Error("Sign in with the shop owner account to open the admin dashboard.");
+  pdAdminStop(); pdAdminTab="overview";
+  const d=pdAdminShell(); d.showModal();
+  const collections=["orders","enquiries","builderRequests","products","users"];
+  collections.forEach(c=>{
+    const q=pdDbMod.query(pdDbMod.collection(pdDb,c));
+    const unsub=pdDbMod.onSnapshot(q,s=>{
+      pdAdminCache[c]=s.docs.map(doc=>({id:doc.id,...doc.data()}));
+      pdAdminRender();
+    },e=>{const h=$("pdAdminContent");if(h)h.innerHTML=`<p class="form-message">Could not load ${pdEsc(c)}: ${pdEsc(pdErr(e))}</p>`});
+    pdAdminUnsubs.push(unsub);
+  });
+  pdAdminRender();
+}
+$("ownerBtn").onclick=async()=>{
+  try{
+    await pdFirebaseReady;
+    if(pdAuthStateReady)await pdAuthStateReady;
+    if(!pdUser){pdAuthDialog().showModal();return}
+    if(pdRole!=="owner"){alert("This account is not the shop owner account.");return}
+    await pdShowOwner();
+  }catch(e){alert(pdErr(e))}
+};
