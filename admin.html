@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#172b49"><title>Prabhat Doors | Admin</title><link rel="stylesheet" href="admin.css"></head>
+<body><header><a href="./">PRABHAT DOORS <small>ADMINISTRATION</small></a><button id="signout" hidden>Sign out</button></header>
+<main><section id="login" class="panel"><h1>Owner sign in</h1><p>Use your existing shop owner account.</p><label>Email<input id="email" type="email" autocomplete="username"></label><label>Password<input id="password" type="password" autocomplete="current-password"></label><button id="loginBtn">Sign in</button><p id="loginMsg" class="msg"></p></section>
+<section id="denied" class="panel" hidden><h1>Access not authorised</h1><p>This account does not have the owner role.</p><button id="tryAgain">Sign out</button></section>
+<section id="app" hidden><div class="welcome"><div><p class="eyebrow">SHOP MANAGEMENT</p><h1>Admin dashboard</h1><p id="who"></p></div></div><nav id="tabs"><button data-tab="overview" class="active">Overview</button><button data-tab="orders">Orders</button><button data-tab="enquiries">Enquiries</button><button data-tab="products">Products</button><button data-tab="customers">Customers</button></nav><p id="status" class="msg"></p><section id="content"></section></section></main>
+<script type="module" src="admin.js"></script></body></html>
