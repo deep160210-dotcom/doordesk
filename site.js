@@ -1,5 +1,5 @@
 const prices={"WPVC":200,"Tough PVC":120,"Laminate Door":250,"Lamination Door":130};
-const recommendations={"Bedroom":["Laminate Door","WPVC","Tough PVC","Lamination Door"],"Bathroom":["WPVC","Tough PVC","Laminate Door","Lamination Door"],"Main door":["Laminate Door","Lamination Door","WPVC","Tough PVC"],"For terrace":["Laminate Door","WPVC","Lamination Door","Tough PVC"]};
+const recommendations={"Bedroom":["Laminate Door","WPVC","Tough PVC","Lamination Door"],"Bathroom":["WPVC","Tough PVC","Laminate Door","Lamination Door"],"Main door":["Laminate Door","Lamination Door","WPVC","Tough PVC"],"Double door":["Laminate Door","WPVC","Tough PVC","Lamination Door"],"Outdoor":["Laminate Door","WPVC","Lamination Door","Tough PVC"]};
 const materialDescriptions={"WPVC":"A versatile option to discuss for bedroom, bathroom and other suitable spaces. Confirm site suitability with the shop.","Tough PVC":"A practical option with specific sheet-size rules. Final billable sheet size is confirmed after measurement review.","Laminate Door":"Explore decorative finishes and designs for spaces where appearance is important.","Lamination Door":"Compare finish options and installation requirements with the shop."};
 const designs=[
  ["PD-101","Classic Panel","Classic","A timeless panel-inspired sample design."],
@@ -25,7 +25,7 @@ $("backMaterials").onclick=()=>showMaterials(activeCategory);
 ["productSearch","styleFilter","sortProducts"].forEach(id=>$(id).addEventListener(id==="productSearch"?"input":"change",renderProducts));
 $("calcBtn").onclick=()=>{const w=Number($("calcWidth").value),h=Number($("calcHeight").value);$("calcOutput").textContent=w>0&&h>0?`Estimated area: ${(w*h/144).toFixed(2)} sq. ft. (${w} × ${h} inches). This is a basic area estimate, not a final quote.`:"Please enter valid width and height in inches.";};
 
-let pdAuth=null,pdDb=null,pdUser=null,pdRole="customer",pdDbMod=null,pdAuthMod=null;
+let pdAuth=null,pdDb=null,pdUser=null,pdRole="customer",pdDbMod=null,pdAuthMod=null,pdAuthStateReady=null;
 const pdFirebaseReady=(async()=>{
  const [{firebaseConfig,isConfigured},appM,authM,dbM]=await Promise.all([
   import("./config.js"),
@@ -36,11 +36,12 @@ const pdFirebaseReady=(async()=>{
  if(!isConfigured)throw new Error("Firebase is not configured in config.js.");
  const app=appM.initializeApp(firebaseConfig);
  pdAuth=authM.getAuth(app);pdDb=dbM.getFirestore(app);pdAuthMod=authM;pdDbMod=dbM;
- authM.onAuthStateChanged(pdAuth,async u=>{
+ pdAuthStateReady=new Promise(resolve=>authM.onAuthStateChanged(pdAuth,async u=>{
   pdUser=u;pdRole="customer";
   if(u){try{const s=await dbM.getDoc(dbM.doc(pdDb,"users",u.uid));pdRole=s.exists()?s.data().role:"customer";}catch(e){console.error(e)}}
   const b=$("ownerBtn");if(b)b.textContent=u?(pdRole==="owner"?"Owner dashboard":"My account"):"Sign in";
- });
+ resolve(u);
+ }));
  return true;
 })();
 function pdAuthDialog(){
@@ -52,14 +53,18 @@ function pdAuthDialog(){
  $("pdSignUp").onclick=async()=>{try{await pdFirebaseReady;const email=$("pdEmail").value.trim(),password=$("pdPassword").value;if(!email||password.length<6)throw new Error("Enter a valid email and password of at least 6 characters.");const c=await pdAuthMod.createUserWithEmailAndPassword(pdAuth,email,password);await pdDbMod.setDoc(pdDbMod.doc(pdDb,"users",c.user.uid),{role:"customer",email,createdAt:pdDbMod.serverTimestamp()});d.close();}catch(x){$("pdAuthMsg").textContent=pdErr(x)}};
  return d;
 }
-function pdErr(e){return ({ "auth/email-already-in-use":"This email already has an account. Please sign in.","auth/invalid-credential":"Email or password is incorrect.","auth/invalid-email":"Enter a valid email address.","auth/weak-password":"Use a password with at least 6 characters.","auth/network-request-failed":"Network error. Please try again."})[e.code]||e.message||"Something went wrong."}
+function pdErr(e){if(e?.message?.includes("Firebase is not configured"))return "Online ordering is not configured. Please contact the shop on WhatsApp.";return ({ "auth/email-already-in-use":"This email already has an account. Please sign in.","auth/invalid-credential":"Email or password is incorrect.","auth/invalid-email":"Enter a valid email address.","auth/weak-password":"Use a password with at least 6 characters.","auth/network-request-failed":"Network error. Please try again."})[e.code]||e.message||"Something went wrong."}
 async function pdRequireLogin(){
  await pdFirebaseReady;
+ if(pdAuthStateReady)await pdAuthStateReady;
+ if(pdAuth?.currentUser && pdUser?.uid!==pdAuth.currentUser.uid){pdUser=pdAuth.currentUser;try{const u=await pdDbMod.getDoc(pdDbMod.doc(pdDb,"users",pdUser.uid));pdRole=u.exists()?u.data().role:"customer";}catch{pdRole="customer";}}
  if(pdUser)return true;
  const d=pdAuthDialog();d.showModal();$("pdAuthMsg").textContent="Sign in or create an account, then submit your request again.";return false;
 }
 async function pdSave(collectionName,data){
  await pdFirebaseReady;
+ if(pdAuthStateReady)await pdAuthStateReady;
+ if(pdAuth?.currentUser && pdUser?.uid!==pdAuth.currentUser.uid)pdUser=pdAuth.currentUser;
  if(!pdUser)throw new Error("Please sign in first.");
  const ref=await pdDbMod.addDoc(pdDbMod.collection(pdDb,collectionName),{
   ...data,customerUid:pdUser.uid,customerEmail:pdUser.email||"",status:"New",createdAt:pdDbMod.serverTimestamp()
